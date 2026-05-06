@@ -110,5 +110,4 @@ The default dev URL is:
 
 ## Notes
 
-- Do not commit `backend/.env` (use `.env.example` as a template).
 - Categories must exist before creating job postings and provider categories (run `seed_categories`).
