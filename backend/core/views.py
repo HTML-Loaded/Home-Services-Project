@@ -48,6 +48,13 @@ def login(request):
     return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
 
 
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+def list_categories(request):
+    categories = Category.objects.all().order_by("category_name")
+    return Response(CategorySerializer(categories, many=True).data)
+
+
 @api_view(["POST"])
 def become_provider(request):
     serializer = BecomeProviderSerializer(data=request.data)
