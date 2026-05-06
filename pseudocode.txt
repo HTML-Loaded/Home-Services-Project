@@ -1,0 +1,653 @@
+6.1.2.1 User Authentication Function Set
+
+6.1.2.1.1 CreateUser (Register)
+
+Description: Create a new user account.
+
+Input: name, DOB, email, password
+Output: user_id
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Retrieve user record matching input email from USER table;
+If record found, then
+Return error: 'User with this email already exists';
+
+password <- HashPassword(password);
+Insert a new record in USER table (name, DOB, email, password, is_active=true);
+Return user_id;
+End
+
+
+6.1.2.1.2 User Login
+
+Description: Authenticate a user by verifying credentials and issuing session tokens.
+
+Input: email, password
+Output: access_jwt
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Retrieve user record matching input email from USER table where is_active=true;
+If no record found, then
+Return error: 'Invalid credentials';
+
+If VerifyPassword(password, user.password) is false, then
+Return error: 'Invalid credentials';
+
+access_jwt <- GenerateJWT(user.user_id);
+Return access_jwt;
+End
+
+
+6.1.2.1.3 User Logout
+
+Description: Log out the user by expiring the JWT on the client.
+
+Input: access_jwt
+Output: success confirmation
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Client deletes stored access_jwt;
+Return success confirmation;
+End
+
+
+6.1.2.1.4 RequireAuth (Auth Helper)
+
+Description: Validate an access JWT and return auth context.
+
+Input: access_jwt
+Output: auth_user_id
+
+Pseudocode:
+
+Begin
+Validate JWT signature and expiry;
+Decode JWT token and extract user_id;
+Return auth_user_id;
+End
+
+
+6.1.2.1.5 GetUserRole
+
+Description: Determine the role of an authenticated user.
+
+Input: access_jwt
+Output: user role (client/provider)
+
+Pseudocode:
+
+Begin
+(auth_user_id) <- RequireAuth(access_jwt);
+If a SERVICE_PROVIDER record exists where provider_id = auth_user_id, then
+Return role: 'provider';
+Else
+Return role: 'client';
+End
+
+
+6.1.2.1.6 PasswordReminder
+
+Description: Send a password reset link to the user's registered email address.
+
+Input: email
+Output: none
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Retrieve user record matching input email from USER table;
+If no record found, then
+Return silently;
+
+Generate password reset token with 1-hour expiry;
+Notification.SendEmail(user.email, 'Password Reset', reset_link);
+End
+
+
+6.1.2.2 Validation Function Set
+
+6.1.2.2.1 ValidateJobPosting
+
+Description: Validate that a job posting input is complete and logically consistent.
+
+Input: category_id, service_area, description, start_time, end_time
+Output: Returns true if input is valid. Returns false with error message if not.
+
+Pseudocode:
+
+Begin
+If category_id is NULL, then
+Return false: 'Category required';
+
+If service_area is empty, then
+Return false: 'Service Area required';
+
+If end_time and/or start_time is NULL, then
+Return false: 'Time slot is required.';
+
+If end_time <= start_time, then
+Return false: 'End time must be after start time.';
+
+Return true;
+End
+
+
+6.1.2.2.2 ValidateReview
+
+Description: Validate that a review submission is within acceptable bounds.
+
+Input: rating, comment
+Output: Returns true if valid. Returns false with error message if not.
+
+Pseudocode:
+
+Begin
+If rating < 1 or rating > 5, then
+Return false: 'Rating must be between 1 and 5';
+
+If comment length > 1000 characters, then
+Return false: 'Comment exceeds 1000 characters';
+
+Return true;
+End
+
+
+6.1.2.2.3 ValidatePaymentAmount
+
+Description: Confirm that a payment amount is positive and matches the booking price.
+
+Input: amount, booking_price
+Output: Returns true if valid. Returns false with error message if not.
+
+Pseudocode:
+
+Begin
+If amount <= 0, then
+Return false: 'Amount must be positive';
+
+If amount != booking_price, then
+Return false: 'Amount does not match booking price';
+
+Return true;
+End
+
+
+6.1.2.3 Database Access Function Set
+
+6.1.2.3.1 ConnectToDB
+
+Description: Establish a connection to the MySQL database.
+
+Input: none
+Output: none
+
+Pseudocode:
+
+Begin
+If connection pool not initialized, then
+Create connection pool with host, port, user, password, database;
+Acquire connection from pool;
+End
+
+
+6.1.2.4 Database Retrieval Function Set
+
+6.1.2.4.1 GetUserProfile
+
+Description: Retrieve the profile of a user by user ID.
+
+Input: user_id
+Output: USER record
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+SELECT * FROM USER WHERE user_id = user_id;
+Return user record;
+End
+
+
+6.1.2.4.2 GetProviderList
+
+Description: Retrieve all service providers matching criteria of a given job posting.
+
+Input: category_id, service_area
+Output: List of SERVICE_PROVIDER records ordered by average_rating descending
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+SELECT sp.*, u.name FROM SERVICE_PROVIDER sp
+JOIN USER u ON u.user_id = sp.provider_id
+JOIN PROVIDES p ON p.provider_id = sp.provider_id
+WHERE p.category_id = category_id
+AND sp.service_area = service_area
+ORDER BY sp.average_rating DESC;
+
+Return list of matching providers;
+End
+
+
+6.1.2.4.3 GetPosting
+
+Description: Retrieve job postings by category_id and service_area.
+
+Input: category_id, service_area
+Output: List of JOB_POSTING records
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+SELECT * FROM JOB_POSTING
+WHERE category_id = category_id
+AND service_area = service_area;
+
+Return retrieved information;
+End
+
+
+6.1.2.4.4 GetBooking
+
+Description: Retrieve all bookings for the input job.
+
+Input: job_id
+Output: List of BOOKING records
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+SELECT * FROM BOOKING WHERE job_id = job_id;
+Return retrieved information;
+End
+
+
+6.1.2.5 Database Update Function Set
+
+6.1.2.5.1 BecomeProvider
+
+Description: Create a provider profile for an existing user.
+
+Input: auth_user_id, service_area, service_distance
+Output: provider_id
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Retrieve user record matching auth_user_id from USER table where is_active=true;
+If no record found, then
+Return error: 'User does not exist';
+
+If a SERVICE_PROVIDER record exists where provider_id = auth_user_id, then
+Return error: 'User is already registered as a provider';
+
+Insert a new record in SERVICE_PROVIDER table (provider_id=auth_user_id, service_area, service_distance, average_rating=0);
+Return provider_id = auth_user_id;
+End
+
+
+6.1.2.5.2 SetProviderCategories
+
+Description: Replace the provider's service categories.
+
+Input: auth_user_id, category_ids[]
+Output: success
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Retrieve user record matching auth_user_id from USER table where is_active=true;
+If no record found, then
+Return error: 'User does not exist';
+
+If no SERVICE_PROVIDER record exists where provider_id = auth_user_id, then
+Return error: 'User is not a provider';
+
+If category_ids is empty, then
+Return error: 'At least one category is required';
+
+Delete records from PROVIDES where provider_id = auth_user_id;
+For each category_id in category_ids do
+Insert record into PROVIDES (provider_id, category_id);
+End for
+
+Return success confirmation;
+End
+
+
+6.1.2.5.3 CreateJobPosting
+
+Description: Insert a new job posting.
+
+Input: auth_user_id, category_id, service_area, description, start_time, end_time
+Output: job_id
+
+Pseudocode:
+
+Begin
+If ValidateJobPosting(category_id, service_area, description, start_time, end_time) is false, then
+Return error;
+
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Insert a new record in JOB_POSTING table (user_id=auth_user_id, category_id, service_area, description, start_time, end_time);
+Return job_id;
+End
+
+
+6.1.2.5.4 DeleteJobPosting
+
+Description: Delete a job posting owned by the authenticated user if it is still open.
+
+Input: auth_user_id, job_id
+Output: success
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Retrieve job_posting record matching job_id from JOB_POSTING table;
+If no record found, then
+Return error: 'Job does not exist';
+
+If job_posting.user_id != auth_user_id, then
+Return error: 'Forbidden';
+
+If a BOOKING record exists where job_id = job_id AND status != 'CANCELLED', then
+Return error: 'Cannot delete a booked/completed job';
+
+Delete record from JOB_POSTING where id = job_id;
+Return success confirmation;
+End
+
+
+6.1.2.5.5 BookJob
+
+Description: Provider submits a booking offer for a job. Multiple providers may book the same job.
+
+Input: auth_user_id, job_id, price, comment
+Output: booking_id
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Retrieve user record matching auth_user_id from USER table where is_active=true;
+If no record found, then
+Return error: 'User does not exist';
+
+If no SERVICE_PROVIDER record exists where provider_id = auth_user_id, then
+Return error: 'User is not a provider';
+
+Retrieve job record matching job_id from JOB_POSTING table;
+If no record found, then
+Return error: 'Job does not exist';
+
+If job.user_id = auth_user_id, then
+Return error: 'Provider cannot book own job';
+
+Retrieve booking record matching job_id and provider_id=auth_user_id from BOOKING table;
+If record found AND booking.status != 'CANCELLED', then
+Return error: 'Provider already booked this job';
+
+Insert a new record in BOOKING table (job_id, provider_id=auth_user_id, price, comment, status='PENDING');
+Return booking_id;
+End
+
+
+6.1.2.5.6 SelectBooking
+
+Description: Client selects one booking offer for their job.
+
+Input: auth_user_id, booking_id
+Output: success
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Retrieve booking record matching booking_id from BOOKING table;
+If no record found, then
+Return error: 'Booking does not exist';
+
+Retrieve job record matching booking.job_id from JOB_POSTING table;
+If no record found, then
+Return error: 'Job does not exist';
+
+If job.user_id != auth_user_id, then
+Return error: 'Forbidden';
+
+If booking.status != 'PENDING', then
+Return error: 'Invalid state';
+
+Update BOOKING set status='ACCEPTED' where booking_id=booking_id;
+Update BOOKING set status='REJECTED' where job_id=booking.job_id AND booking_id != booking_id AND status='PENDING';
+Return success confirmation;
+End
+
+
+6.1.2.5.7 CancelBooking
+
+Description: Client cancels a booking before completion.
+
+Input: auth_user_id, booking_id
+Output: success
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Retrieve booking record matching booking_id from BOOKING table;
+If no record found, then
+Return error: 'Booking does not exist';
+
+If auth_user_id != booking.client_user_id, then
+Return error: 'Forbidden';
+
+If booking.status in ('COMPLETED','CANCELLED'), then
+Return error: 'Invalid state';
+
+Update BOOKING set status='CANCELLED', cancelled_at=now where id=booking_id;
+Update JOB_POSTING set status='OPEN' where id=booking.job_id;
+Return success confirmation;
+End
+
+
+6.1.2.5.8 CompleteJob
+
+Description: Provider completes an accepted booking.
+
+Input: auth_user_id, booking_id
+Output: success
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Retrieve user record matching auth_user_id from USER table where is_active=true;
+If no record found, then
+Return error: 'User does not exist';
+
+If no SERVICE_PROVIDER record exists where provider_id = auth_user_id, then
+Return error: 'User is not a provider';
+
+Retrieve booking record matching booking_id from BOOKING table;
+If no record found, then
+Return error: 'Booking does not exist';
+
+If booking.provider_id != auth_user_id, then
+Return error: 'Forbidden';
+
+If booking.status != 'ACCEPTED', then
+Return error: 'Invalid state';
+
+Update BOOKING set status='COMPLETED' where id=booking_id;
+Return success confirmation;
+End
+
+
+6.1.2.5.9 CreatePayment
+
+Description: Client pays for a fulfilled booking.
+
+Input: auth_user_id, booking_id, amount, payment_method
+Output: payment_id
+
+Pseudocode:
+
+Begin
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Retrieve booking record matching booking_id from BOOKING table;
+If no record found, then
+Return error: 'Booking does not exist';
+
+Retrieve job record matching booking.job_id from JOB_POSTING table;
+If no record found, then
+Return error: 'Job does not exist';
+
+If job.user_id != auth_user_id, then
+Return error: 'Forbidden';
+
+If ValidatePaymentAmount(amount, booking.price) is false, then
+Return error;
+
+If booking.status != 'COMPLETED', then
+Return error: 'Payment requires completed booking';
+
+Retrieve payment record matching booking_id from PAYMENT table;
+If record found, then
+Return error: 'This booking has been paid for';
+
+Insert new record in PAYMENT table (booking_id, amount, payment_date=now, payment_method);
+Return payment_id;
+End
+
+
+6.1.2.5.10 CreateReview
+
+Description: Client reviews a provider after completion.
+
+Input: auth_user_id, booking_id, rating, comment
+Output: review_id
+
+Pseudocode:
+
+Begin
+If ValidateReview(rating, comment) is false, then
+Return error;
+
+If not connected to database, then
+DatabaseAccess.ConnectToDB;
+
+Retrieve booking record matching booking_id from BOOKING table;
+If no record found, then
+Return error: 'Booking does not exist';
+
+Retrieve job record matching booking.job_id from JOB_POSTING table;
+If no record found, then
+Return error: 'Job does not exist';
+
+If job.user_id != auth_user_id, then
+Return error: 'Forbidden';
+
+If booking.status != 'COMPLETED', then
+Return error: 'Review requires completed booking';
+
+Retrieve review record matching booking_id from REVIEW table;
+If record found, then
+Return error: 'This booking has already been reviewed';
+
+Insert new record in REVIEW table (booking_id, user_id=auth_user_id, rating, comment, review_date=now);
+
+avg_rating <- SELECT AVG(r.rating)
+FROM REVIEW r
+JOIN BOOKING b ON r.booking_id = b.booking_id
+WHERE b.provider_id = booking.provider_id;
+
+Update SERVICE_PROVIDER set average_rating = avg_rating where provider_id = booking.provider_id;
+Return review_id;
+End
+
+
+6.1.2.6 Notification Function Set
+
+6.1.2.6.1 SendEmail
+
+Description: Send an email notification to a user.
+
+Input: recipient_email, subject, body
+Output: none
+
+Pseudocode:
+
+Begin
+Compose email message with recipient_email, subject, body;
+Call SendGrid API with composed message;
+If API call fails, then
+Log error and queue for retry;
+End
+
+
+6.1.2.6.2 SendAlert
+
+Description: Send an in-app or SMS notification to a user.
+
+Input: user_id, message
+Output: none
+
+Pseudocode:
+
+Begin
+Retrieve user phone number from USER record;
+Call Twilio SMS API with user phone and message;
+If API call fails, then
+Log error and queue for retry;
+End

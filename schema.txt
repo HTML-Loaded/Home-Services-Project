@@ -1,0 +1,79 @@
+Table USER {
+  user_id int [pk, increment]
+  name varchar
+  email varchar [not null, unique]
+  password varchar [not null]
+  DOB date
+  is_active boolean [not null]
+}
+
+Table SERVICE_PROVIDER {
+  provider_id int [pk, ref: > USER.user_id]
+  average_rating float
+  service_area text [not null]
+  service_distance float
+}
+
+Table CATEGORY {
+  category_id int [pk, increment]
+  category_name text
+}
+
+Table PROVIDES {
+  provider_id int [pk, not null, ref: > SERVICE_PROVIDER.provider_id]
+  category_id int [not null, ref: > CATEGORY.category_id]
+}
+
+Table BACKGROUND_CHECK {
+  check_id int [pk, increment]
+  user_id int [not null, ref: > USER.user_id]
+  date date
+  report text [not null]
+}
+
+Table DISPUTE {
+  dispute_id int [pk, increment]
+  booking_id int [not null, ref: > BOOKING.booking_id]
+  claimant_id int [not null, ref: > USER.user_id]
+  defendant_id int [not null, ref: > USER.user_id]
+  reason text
+  description text
+}
+
+Table JOB_POSTING {
+  job_id int [pk, increment]
+  user_id int [not null, ref: > USER.user_id]
+  category_id int [not null, ref: > CATEGORY.category_id]
+  service_area text [not null]
+  description text
+  start_time datetime
+  end_time datetime
+}
+
+Table BOOKING {
+  booking_id int [pk, increment]
+  job_id int [not null, ref: > JOB_POSTING.job_id]
+  provider_id int [not null, ref: > SERVICE_PROVIDER.provider_id]
+  price decimal
+  comment text
+  status text
+
+  indexes {
+    (job_id, provider_id) [unique]
+  }
+}
+
+Table REVIEW {
+  booking_id int [pk, ref: > BOOKING.booking_id]
+  user_id int [not null, ref: > USER.user_id]
+  rating int [not null]
+  comment text
+  review_date date [not null]
+}
+
+Table PAYMENT {
+  booking_id int [pk, ref: > BOOKING.booking_id]
+  amount decimal [not null]
+  payment_date date [not null]
+  payment_method varchar [not null]
+}
