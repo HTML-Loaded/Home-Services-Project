@@ -84,6 +84,16 @@ a {
   color: #111827;
 }
 
+.button.danger {
+  border-color: #b91c1c;
+  background: #b91c1c;
+}
+
+.button.danger.secondary {
+  background: white;
+  color: #b91c1c;
+}
+
 .button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -96,6 +106,52 @@ a {
 .error {
   color: #b91c1c;
   font-weight: 600;
+}
+
+.success {
+  color: #065f46;
+  font-weight: 600;
+}
+
+.banner {
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  background: white;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.badge.pending {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.badge.accepted {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
+.badge.completed {
+  background: #d1fae5;
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.badge.cancelled {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #991b1b;
 }
 
 .grid2 {
