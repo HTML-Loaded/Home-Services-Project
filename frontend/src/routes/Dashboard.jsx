@@ -26,43 +26,50 @@ export default function Dashboard() {
   return (
     <div className="stack">
       <div className="card">
-        <h2 style={{ marginTop: 0 }}>Welcome</h2>
+        <h2 style={{ marginTop: 0 }}>Dashboard</h2>
         {error ? <div className="error">{error}</div> : null}
         {me ? (
           <div className="stack" style={{ gap: 6 }}>
             <div>
               Signed in as <b>{me.user?.email}</b>
             </div>
-            <div className="muted">Provider account: {me.is_provider ? 'Yes' : 'No'}</div>
+            <div className="muted">Role: {me.is_provider ? 'Provider' : 'Client'}</div>
           </div>
         ) : (
           <div className="muted">Loading…</div>
         )}
       </div>
 
-      <div className="grid2">
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Client</h3>
-          <div className="stack">
-            <Link to="/client/jobs">My jobs (create + list)</Link>
-            <Link to="/client/providers">Provider search</Link>
-            <Link to="/client/bookings">My bookings</Link>
-            <Link to="/client/payments">Payments</Link>
-            <Link to="/client/reviews">Reviews</Link>
-            <Link to="/client/disputes">Disputes</Link>
+      {me ? (
+        <div className="grid2">
+          <div className="card">
+            <h3 style={{ marginTop: 0 }}>Client shortcuts</h3>
+            <div className="stack">
+              <Link to="/client/jobs">My job postings</Link>
+              <Link to="/client/providers">Find providers</Link>
+              <Link to="/client/bookings">Manage bookings</Link>
+              <Link to="/client/payments">Payments</Link>
+              <Link to="/client/reviews">Reviews</Link>
+              <Link to="/client/disputes">Disputes</Link>
+            </div>
           </div>
-        </div>
 
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Provider</h3>
-          <div className="stack">
-            {me?.is_provider ? null : <Link to="/provider/onboarding">Become a provider</Link>}
-            <Link to="/provider/jobs">Browse jobs</Link>
-            <Link to="/provider/bookings">My bookings</Link>
-            <Link to="/provider/reviews">My reviews</Link>
+          <div className="card">
+            <h3 style={{ marginTop: 0 }}>Provider shortcuts</h3>
+            <div className="stack">
+              {me.is_provider ? (
+                <>
+                  <Link to="/provider/jobs">Browse jobs</Link>
+                  <Link to="/provider/bookings">My bookings</Link>
+                  <Link to="/provider/reviews">My reviews</Link>
+                </>
+              ) : (
+                <Link to="/provider/onboarding">Become a provider</Link>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

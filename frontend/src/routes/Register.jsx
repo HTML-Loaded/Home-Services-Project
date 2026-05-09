@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { saveLogin } from '../lib/auth.js';
 import Banner from '../ui/Banner.jsx';
+import { isValidEmail, isValidPassword } from '../lib/validation.js';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -10,12 +11,25 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [dob, setDob] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [asProvider, setAsProvider] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const strength = password.length >= 12 ? 'Strong' : password.length >= 8 ? 'Medium' : 'Weak';
+
+  const emailError = email && !isValidEmail(email) ? 'Enter a valid email address' : '';
+  const passwordError = password && !isValidPassword(password) ? 'Password must be at least 8 characters' : '';
+  const confirmError = confirmPassword && confirmPassword !== password ? 'Passwords do not match' : '';
+  const canSubmit =
+    !!name &&
+    !!email &&
+    !!password &&
+    !!confirmPassword &&
+    !emailError &&
+    !passwordError &&
+    !confirmError;
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -47,6 +61,7 @@ export default function Register() {
         <div className="stack" style={{ gap: 6 }}>
           <div className="label">Email</div>
           <input className="input" value={email} onChange={(e) => setEmail(e.target.value)} />
+          {emailError ? <div className="fieldError">{emailError}</div> : null}
         </div>
         <div className="stack" style={{ gap: 6 }}>
           <div className="label">Date of birth (optional)</div>
@@ -61,13 +76,25 @@ export default function Register() {
             onChange={(e) => setPassword(e.target.value)}
           />
           <div className="muted">Strength: {strength}</div>
+          {passwordError ? <div className="fieldError">{passwordError}</div> : null}
+        </div>
+
+        <div className="stack" style={{ gap: 6 }}>
+          <div className="label">Confirm password</div>
+          <input
+            className="input"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+          {confirmError ? <div className="fieldError">{confirmError}</div> : null}
         </div>
         <label className="row" style={{ gap: 8 }}>
           <input type="checkbox" checked={asProvider} onChange={(e) => setAsProvider(e.target.checked)} />
           <span>Register as provider (you’ll set categories next)</span>
         </label>
         <Banner kind={success ? 'success' : error ? 'error' : ''}>{success || error}</Banner>
-        <button className="button" disabled={loading}>
+        <button className="button" disabled={loading || !canSubmit}>
           {loading ? 'Creating…' : 'Create account'}
         </button>
         <div className="muted">

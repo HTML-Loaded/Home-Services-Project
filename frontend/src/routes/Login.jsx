@@ -1,15 +1,19 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { saveLogin } from '../lib/auth.js';
 import Banner from '../ui/Banner.jsx';
+import { isValidEmail } from '../lib/validation.js';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(location.state?.message || '');
   const [loading, setLoading] = useState(false);
+
+  const emailError = email && !isValidEmail(email) ? 'Enter a valid email address' : '';
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -34,6 +38,7 @@ export default function Login() {
         <div className="stack" style={{ gap: 6 }}>
           <div className="label">Email</div>
           <input className="input" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />
+          {emailError ? <div className="fieldError">{emailError}</div> : null}
         </div>
         <div className="stack" style={{ gap: 6 }}>
           <div className="label">Password</div>
@@ -45,7 +50,7 @@ export default function Login() {
           />
         </div>
         <Banner kind={error ? 'error' : ''}>{error}</Banner>
-        <button className="button" disabled={loading}>
+        <button className="button" disabled={loading || !!emailError || !email || !password}>
           {loading ? 'Signing in…' : 'Login'}
         </button>
         <div>

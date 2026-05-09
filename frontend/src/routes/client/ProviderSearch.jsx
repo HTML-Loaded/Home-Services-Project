@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api.js';
 import Banner from '../../ui/Banner.jsx';
 
@@ -15,6 +16,7 @@ function Stars({ rating }) {
 }
 
 export default function ProviderSearch() {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState('');
   const [serviceArea, setServiceArea] = useState('');
@@ -23,6 +25,7 @@ export default function ProviderSearch() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [busy, setBusy] = useState(false);
+  const [selectedProviderId, setSelectedProviderId] = useState('');
 
   const categoryOptions = useMemo(() => {
     const opts = categories.map((c) => ({ value: String(c.category_id), label: c.category_name }));
@@ -52,6 +55,17 @@ export default function ProviderSearch() {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!categoryId || !serviceArea) return;
+    const id = setTimeout(() => {
+      api
+        .listProviders({ categoryId, serviceArea })
+        .then((data) => setProviders(Array.isArray(data) ? data : []))
+        .catch(() => setProviders([]));
+    }, 200);
+    return () => clearTimeout(id);
+  }, [categoryId, serviceArea]);
 
   return (
     <div className="stack">
@@ -93,10 +107,30 @@ export default function ProviderSearch() {
                   <div style={{ fontWeight: 700 }}>{p.provider?.name}</div>
                   <div className="muted">
                     <Stars rating={p.average_rating} /> · {p.service_area}
+                    {p.service_distance ? ` · ${p.service_distance}mi` : ''}
                   </div>
+                  {Array.isArray(p.categories) && p.categories.length ? (
+                    <div className="muted">{p.categories.join(', ')}</div>
+                  ) : null}
                 </div>
-                <div className="muted">Booking is done from provider side</div>
+                <button
+                  className="button"
+                  type="button"
+                  onClick={() => {
+                    setSelectedProviderId(String(p.provider?.user_id || ''));
+                    sessionStorage.setItem('selected_provider_id', String(p.provider?.user_id || ''));
+                    setSuccess('Provider selected. Create a job posting next.');
+                    navigate(`/client/jobs?category_id=${encodeURIComponent(categoryId)}&service_area=${encodeURIComponent(serviceArea)}`);
+                  }}
+                >
+                  Book
+                </button>
               </div>
+              {selectedProviderId && String(p.provider?.user_id) === selectedProviderId ? (
+                <div className="success" style={{ marginTop: 10 }}>
+                  Selected
+                </div>
+              ) : null}
             </div>
           ))}
       </div>

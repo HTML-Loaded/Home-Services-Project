@@ -29,10 +29,14 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ServiceProviderSerializer(serializers.ModelSerializer):
     provider = UserSerializer(read_only=True)
+    categories = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceProvider
-        fields = ["provider", "average_rating", "service_area", "service_distance"]
+        fields = ["provider", "average_rating", "service_area", "service_distance", "categories"]
+
+    def get_categories(self, obj):
+        return [p.category.category_name for p in obj.provides.all().select_related("category")]
 
 
 class ProvidesSerializer(serializers.ModelSerializer):
@@ -87,6 +91,14 @@ class JobPostingCreateSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
     start_time = serializers.DateTimeField()
     end_time = serializers.DateTimeField()
+
+
+class JobPostingUpdateSerializer(serializers.Serializer):
+    category_id = serializers.IntegerField(required=False)
+    service_area = serializers.CharField(required=False)
+    description = serializers.CharField(required=False, allow_blank=True)
+    start_time = serializers.DateTimeField(required=False)
+    end_time = serializers.DateTimeField(required=False)
 
 
 class BookingSerializer(serializers.ModelSerializer):

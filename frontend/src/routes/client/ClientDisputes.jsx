@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api.js';
 import Banner from '../../ui/Banner.jsx';
+import CharCounter from '../../ui/CharCounter.jsx';
 
 export default function ClientDisputes() {
   const [searchParams] = useSearchParams();
@@ -9,6 +10,7 @@ export default function ClientDisputes() {
   const [bookingId, setBookingId] = useState(searchParams.get('booking_id') || '');
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
+  const maxDescription = 1000;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -61,7 +63,13 @@ export default function ClientDisputes() {
             </div>
             <div className="stack" style={{ gap: 6 }}>
               <div className="label">Description</div>
-              <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
+              <textarea
+                className="input"
+                style={{ minHeight: 90, resize: 'vertical' }}
+                value={description}
+                onChange={(e) => setDescription(e.target.value.slice(0, maxDescription))}
+              />
+              <CharCounter value={description} max={maxDescription} />
             </div>
             <button className="button" disabled={busy || !bookingId}>
               Submit

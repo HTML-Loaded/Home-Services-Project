@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import Banner from '../../ui/Banner.jsx';
 import StatusBadge from '../../ui/StatusBadge.jsx';
+import StarRating from '../../ui/StarRating.jsx';
+import CharCounter from '../../ui/CharCounter.jsx';
 
 export default function ClientBookings() {
   const [bookings, setBookings] = useState([]);
@@ -11,8 +13,18 @@ export default function ClientBookings() {
 
   const [payAmount, setPayAmount] = useState('');
   const [payMethod, setPayMethod] = useState('card');
-  const [reviewRating, setReviewRating] = useState('5');
+  const [cardNumber, setCardNumber] = useState('');
+  const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+
+  const maxComment = 1000;
+
+  function maskCard(value) {
+    const digits = String(value || '').replace(/\D/g, '').slice(0, 19);
+    if (!digits) return '';
+    const last4 = digits.slice(-4);
+    return `•••• •••• •••• ${last4}`;
+  }
 
   async function refresh() {
     const data = await api.myBookingsAsClient();
@@ -91,25 +103,41 @@ export default function ClientBookings() {
                 <div className="label">Method</div>
                 <input className="input" value={payMethod} onChange={(e) => setPayMethod(e.target.value)} />
               </div>
+              <div style={{ flex: 2, minWidth: 220 }}>
+                <div className="label">Card number</div>
+                <input
+                  className="input"
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16))}
+                  placeholder="1234123412341234"
+                />
+                <div className="muted">{cardNumber ? maskCard(cardNumber) : 'Masked: •••• •••• •••• 1234'}</div>
+              </div>
               <button
                 className="button secondary"
-                disabled={busyId === String(b.booking_id) || b.status !== 'COMPLETED' || !payAmount}
+                disabled={busyId === String(b.booking_id) || b.status !== 'COMPLETED' || !payAmount || cardNumber.length < 12}
                 onClick={() =>
                   act(b.booking_id, () => api.payBooking({ booking_id: b.booking_id, amount: payAmount, payment_method: payMethod }))
                 }
               >
-                Pay
+                Confirm payment
               </button>
             </div>
 
             <div className="row" style={{ marginTop: 12, alignItems: 'end' }}>
-              <div style={{ flex: 1, minWidth: 120 }}>
-                <div className="label">Rating 1-5</div>
-                <input className="input" value={reviewRating} onChange={(e) => setReviewRating(e.target.value)} />
-              </div>
               <div style={{ flex: 3, minWidth: 240 }}>
                 <div className="label">Comment</div>
-                <input className="input" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} />
+                <textarea
+                  className="input"
+                  style={{ minHeight: 80, resize: 'vertical' }}
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value.slice(0, maxComment))}
+                />
+                <CharCounter value={reviewComment} max={maxComment} />
+              </div>
+              <div style={{ flex: 2, minWidth: 240 }}>
+                <div className="label">Rating</div>
+                <StarRating value={reviewRating} onChange={setReviewRating} disabled={busyId === String(b.booking_id) || b.status !== 'COMPLETED'} />
               </div>
               <button
                 className="button secondary"

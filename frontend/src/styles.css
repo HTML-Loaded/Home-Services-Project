@@ -113,6 +113,22 @@ a {
   font-weight: 600;
 }
 
+.fieldError {
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.counter {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.counter.warn {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
 .banner {
   border-radius: 10px;
   padding: 12px;

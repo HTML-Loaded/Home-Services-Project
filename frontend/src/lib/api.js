@@ -4,6 +4,10 @@ function getAccessToken() {
   return localStorage.getItem('access') || '';
 }
 
+function getRefreshToken() {
+  return localStorage.getItem('refresh') || '';
+}
+
 export function setTokens({ access, refresh }) {
   if (access) localStorage.setItem('access', access);
   if (refresh) localStorage.setItem('refresh', refresh);
@@ -12,6 +16,19 @@ export function setTokens({ access, refresh }) {
 export function clearTokens() {
   localStorage.removeItem('access');
   localStorage.removeItem('refresh');
+}
+
+export function getTokenExpiryMs(token) {
+  try {
+    const parts = String(token || '').split('.');
+    if (parts.length !== 3) return 0;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const exp = Number(payload?.exp || 0);
+    if (!exp) return 0;
+    return exp * 1000;
+  } catch {
+    return 0;
+  }
 }
 
 async function request(path, { method = 'GET', body, auth = true } = {}) {
@@ -64,6 +81,7 @@ function withQuery(path, query) {
 export const api = {
   register: (payload) => request('/api/auth/register/', { method: 'POST', body: payload, auth: false }),
   login: (payload) => request('/api/auth/login/', { method: 'POST', body: payload, auth: false }),
+  refresh: () => request('/api/auth/refresh/', { method: 'POST', body: { refresh: getRefreshToken() }, auth: false }),
   me: () => request('/api/me/'),
   categories: () => request('/api/categories/', { method: 'GET', auth: false }),
 
@@ -72,6 +90,8 @@ export const api = {
 
   createJob: (payload) => request('/api/jobs/', { method: 'POST', body: payload }),
   myJobs: () => request('/api/jobs/mine/'),
+  deleteJob: (jobId) => request(`/api/jobs/${jobId}/`, { method: 'DELETE' }),
+  updateJob: (jobId, payload) => request(`/api/jobs/${jobId}/`, { method: 'PATCH', body: payload }),
   listJobs: ({ categoryId, serviceArea }) =>
     request(withQuery('/api/jobs/list/', { category_id: categoryId, service_area: serviceArea })),
 

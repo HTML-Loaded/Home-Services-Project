@@ -39,6 +39,7 @@ def get_provider_list(category_id, service_area):
     return (
         ServiceProvider.objects.filter(service_area=service_area, provides__category_id=category_id)
         .select_related("provider")
+        .prefetch_related("provides__category")
         .order_by("-average_rating")
     )
 
@@ -93,6 +94,51 @@ def create_job_posting(user, category_id, service_area, description=None, start_
 
 
 @transaction.atomic
+def update_job_posting(
+    user,
+    job_id,
+    *,
+    category_id=None,
+    service_area=None,
+    description=None,
+    start_time=None,
+    end_time=None,
+):
+    job = JobPosting.objects.select_related("category").get(job_id=job_id)
+    if job.user_id != user.user_id:
+        raise ValueError("Forbidden")
+
+    if Booking.objects.filter(job=job, status__in={"ACCEPTED", "COMPLETED"}).exists():
+        raise ValueError("Cannot edit a job with an accepted or completed booking")
+
+    next_category_id = category_id if category_id is not None else job.category_id
+    next_service_area = service_area if service_area is not None else job.service_area
+    next_start_time = start_time if start_time is not None else job.start_time
+    next_end_time = end_time if end_time is not None else job.end_time
+
+    validate_job_posting(
+        category_id=next_category_id,
+        service_area=next_service_area,
+        start_time=next_start_time,
+        end_time=next_end_time,
+    )
+
+    if category_id is not None:
+        job.category = Category.objects.get(category_id=category_id)
+    if service_area is not None:
+        job.service_area = service_area
+    if description is not None:
+        job.description = description
+    if start_time is not None:
+        job.start_time = start_time
+    if end_time is not None:
+        job.end_time = end_time
+
+    job.save()
+    return job
+
+
+@transaction.atomic
 def book_job(provider_user, job_id, price=None, comment=None):
     provider = ServiceProvider.objects.get(provider=provider_user)
     job = JobPosting.objects.get(job_id=job_id)
@@ -132,12 +178,24 @@ def cancel_booking(client_user, booking_id):
 @transaction.atomic
 def complete_job(provider_user, booking_id):
     booking = Booking.objects.select_related("provider").get(booking_id=booking_id)
-    if booking.provider_id != provider_user.user_id:
+    if booking.provider.provider_id != provider_user.user_id:
         raise ValueError("Forbidden")
     if booking.status != "ACCEPTED":
         raise ValueError("Invalid state")
 
     Booking.objects.filter(booking_id=booking_id).update(status="COMPLETED")
+
+
+@transaction.atomic
+def delete_job_posting(user, job_id):
+    job = JobPosting.objects.get(job_id=job_id)
+    if job.user_id != user.user_id:
+        raise ValueError("Forbidden")
+
+    if Booking.objects.filter(job=job, status__in={"ACCEPTED", "COMPLETED"}).exists():
+        raise ValueError("Cannot delete a job with an accepted or completed booking")
+
+    job.delete()
 
 
 @transaction.atomic

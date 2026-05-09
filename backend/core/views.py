@@ -18,6 +18,7 @@ from .serializers import (
     CreateReviewSerializer,
     DisputeSerializer,
     JobPostingCreateSerializer,
+    JobPostingUpdateSerializer,
     JobPostingListSerializer,
     JobPostingSerializer,
     PaymentSerializer,
@@ -165,6 +166,18 @@ def list_jobs(request):
 
     jobs = _service_call(lambda: services.get_postings(category_id=category_id, service_area=service_area))
     return Response(JobPostingSerializer(jobs, many=True).data)
+
+
+@api_view(["DELETE", "PATCH", "PUT"])
+def job_detail(request, job_id: int):
+    if request.method == "DELETE":
+        _service_call(lambda: services.delete_job_posting(user=request.user, job_id=job_id))
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    serializer = JobPostingUpdateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    job = _service_call(lambda: services.update_job_posting(user=request.user, job_id=job_id, **serializer.validated_data))
+    return Response(JobPostingSerializer(job).data)
 
 
 @api_view(["POST"])
