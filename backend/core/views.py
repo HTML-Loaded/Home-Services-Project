@@ -1,22 +1,39 @@
 from rest_framework import permissions, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.exceptions import ObjectDoesNotExist
 
 from . import services
-from .models import User
+from .models import Category, User
 from .serializers import (
     BookingIdSerializer,
     BecomeProviderSerializer,
     BookJobSerializer,
+    CategorySerializer,
+    CreateDisputeSerializer,
     CreatePaymentSerializer,
     CreateReviewSerializer,
+    DisputeSerializer,
     JobPostingCreateSerializer,
     JobPostingSerializer,
     RegisterSerializer,
     ServiceProviderSerializer,
     SetProviderCategoriesSerializer,
 )
+
+
+def _service_call(fn):
+    try:
+        return fn()
+    except ObjectDoesNotExist as exc:
+        raise NotFound(detail=str(exc))
+    except ValueError as exc:
+        message = str(exc)
+        if message in {"Forbidden", "You are not a party to this booking"}:
+            raise PermissionDenied(detail=message)
+        raise ValidationError({"detail": message})
 
 
 @api_view(["POST"])
@@ -59,7 +76,7 @@ def list_categories(request):
 def become_provider(request):
     serializer = BecomeProviderSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    provider = services.become_provider(request.user, **serializer.validated_data)
+    provider = _service_call(lambda: services.become_provider(request.user, **serializer.validated_data))
     return Response(ServiceProviderSerializer(provider).data, status=status.HTTP_201_CREATED)
 
 
@@ -67,7 +84,9 @@ def become_provider(request):
 def set_provider_categories(request):
     serializer = SetProviderCategoriesSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    services.set_provider_categories(request.user, serializer.validated_data["category_ids"])
+    _service_call(
+        lambda: services.set_provider_categories(request.user, serializer.validated_data["category_ids"])
+    )
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -75,7 +94,7 @@ def set_provider_categories(request):
 def create_job(request):
     serializer = JobPostingCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    job = services.create_job_posting(user=request.user, **serializer.validated_data)
+    job = _service_call(lambda: services.create_job_posting(user=request.user, **serializer.validated_data))
     return Response(JobPostingSerializer(job).data, status=status.HTTP_201_CREATED)
 
 
@@ -86,7 +105,7 @@ def list_jobs(request):
     if category_id is None or service_area is None:
         return Response({"detail": "category_id and service_area required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    jobs = services.get_postings(category_id=category_id, service_area=service_area)
+    jobs = _service_call(lambda: services.get_postings(category_id=category_id, service_area=service_area))
     return Response(JobPostingSerializer(jobs, many=True).data)
 
 
@@ -94,7 +113,9 @@ def list_jobs(request):
 def book_job(request, job_id: int):
     serializer = BookJobSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    booking = services.book_job(provider_user=request.user, job_id=job_id, **serializer.validated_data)
+    booking = _service_call(
+        lambda: services.book_job(provider_user=request.user, job_id=job_id, **serializer.validated_data)
+    )
     return Response({"booking_id": booking.booking_id}, status=status.HTTP_201_CREATED)
 
 
@@ -102,7 +123,11 @@ def book_job(request, job_id: int):
 def select_booking(request):
     serializer = BookingIdSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    services.select_booking(client_user=request.user, booking_id=serializer.validated_data["booking_id"])
+    _service_call(
+        lambda: services.select_booking(
+            client_user=request.user, booking_id=serializer.validated_data["booking_id"]
+        )
+    )
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -110,7 +135,11 @@ def select_booking(request):
 def cancel_booking(request):
     serializer = BookingIdSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    services.cancel_booking(client_user=request.user, booking_id=serializer.validated_data["booking_id"])
+    _service_call(
+        lambda: services.cancel_booking(
+            client_user=request.user, booking_id=serializer.validated_data["booking_id"]
+        )
+    )
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -118,7 +147,11 @@ def cancel_booking(request):
 def complete_booking(request):
     serializer = BookingIdSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    services.complete_job(provider_user=request.user, booking_id=serializer.validated_data["booking_id"])
+    _service_call(
+        lambda: services.complete_job(
+            provider_user=request.user, booking_id=serializer.validated_data["booking_id"]
+        )
+    )
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -126,7 +159,7 @@ def complete_booking(request):
 def pay_booking(request):
     serializer = CreatePaymentSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    payment = services.create_payment(client_user=request.user, **serializer.validated_data)
+    payment = _service_call(lambda: services.create_payment(client_user=request.user, **serializer.validated_data))
     return Response({"booking_id": payment.booking_id}, status=status.HTTP_201_CREATED)
 
 
@@ -134,10 +167,33 @@ def pay_booking(request):
 def review_booking(request):
     serializer = CreateReviewSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    review = services.create_review(
-        client_user=request.user,
-        booking_id=serializer.validated_data["booking_id"],
-        rating=serializer.validated_data["rating"],
-        comment=serializer.validated_data.get("comment"),
+    review = _service_call(
+        lambda: services.create_review(
+            client_user=request.user,
+            booking_id=serializer.validated_data["booking_id"],
+            rating=serializer.validated_data["rating"],
+            comment=serializer.validated_data.get("comment"),
+        )
     )
     return Response({"booking_id": review.booking_id}, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+def create_dispute(request):
+    serializer = CreateDisputeSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    dispute = _service_call(
+        lambda: services.create_dispute(
+            claimant_user=request.user,
+            booking_id=serializer.validated_data["booking_id"],
+            reason=serializer.validated_data.get("reason"),
+            description=serializer.validated_data.get("description"),
+        )
+    )
+    return Response(DisputeSerializer(dispute).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+def list_disputes(request):
+    disputes = _service_call(lambda: services.get_disputes_for_user(request.user))
+    return Response(DisputeSerializer(disputes, many=True).data)

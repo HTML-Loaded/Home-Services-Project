@@ -1,8 +1,9 @@
 from django.db import transaction
 from django.db.models import Avg
 from django.utils import timezone
+from django.db.models import Q
 
-from .models import Booking, Category, JobPosting, Payment, Provides, Review, ServiceProvider, User
+from .models import Booking, Category, Dispute, JobPosting, Payment, Provides, Review, ServiceProvider, User
 
 
 def validate_job_posting(category_id, service_area, start_time, end_time):
@@ -187,3 +188,35 @@ def create_review(client_user, booking_id, rating, comment=None):
     ServiceProvider.objects.filter(provider=booking.provider.provider).update(average_rating=avg_rating)
 
     return review
+
+
+@transaction.atomic
+def create_dispute(claimant_user, booking_id, reason=None, description=None):
+    booking = Booking.objects.select_related("job", "provider").get(booking_id=booking_id)
+
+    # Only the client who posted the job or the assigned provider can file a dispute
+    client_id = booking.job.user_id
+    provider_id = booking.provider.provider_id
+    if claimant_user.user_id not in {client_id, provider_id}:
+        raise ValueError("You are not a party to this booking")
+
+    if booking.status not in {"ACCEPTED", "COMPLETED"}:
+        raise ValueError("Disputes can only be filed on accepted or completed bookings")
+
+    if Dispute.objects.filter(booking=booking, claimant_id=claimant_user.user_id).exists():
+        raise ValueError("You have already filed a dispute for this booking")
+
+    # Defendant is the other party
+    defendant_id = provider_id if claimant_user.user_id == client_id else client_id
+
+    return Dispute.objects.create(
+        booking=booking,
+        claimant_id=claimant_user.user_id,
+        defendant_id=defendant_id,
+        reason=reason,
+        description=description,
+    )
+
+
+def get_disputes_for_user(user):
+    return Dispute.objects.filter(Q(claimant_id=user.user_id) | Q(defendant_id=user.user_id)).distinct()

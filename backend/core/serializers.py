@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Booking, Category, JobPosting, Payment, Provides, Review, ServiceProvider, User
+from .models import Booking, Category, Dispute, JobPosting, Payment, Provides, Review, ServiceProvider, User
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -99,3 +99,16 @@ class CreateReviewSerializer(serializers.Serializer):
     booking_id = serializers.IntegerField()
     rating = serializers.IntegerField()
     comment = serializers.CharField(required=False, allow_blank=True)
+
+
+class CreateDisputeSerializer(serializers.Serializer):
+    booking_id = serializers.IntegerField()
+    reason = serializers.CharField(required=False, allow_blank=True)
+    description = serializers.CharField(required=False, allow_blank=True)
+
+
+class DisputeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Dispute
+        fields = ["dispute_id", "booking", "claimant", "defendant", "reason", "description"]
+        read_only_fields = ["dispute_id", "claimant", "defendant"]

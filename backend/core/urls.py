@@ -16,4 +16,6 @@ urlpatterns = [
     path("bookings/complete/", views.complete_booking),
     path("bookings/pay/", views.pay_booking),
     path("bookings/review/", views.review_booking),
+    path("disputes/", views.create_dispute),
+    path("disputes/list/", views.list_disputes),
 ]
