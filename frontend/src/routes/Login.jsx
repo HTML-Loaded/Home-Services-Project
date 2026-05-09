@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { saveLogin } from '../lib/auth.js';
+import Banner from '../ui/Banner.jsx';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -17,7 +18,8 @@ export default function Login() {
     try {
       const tokens = await api.login({ email, password });
       saveLogin(tokens);
-      navigate('/dashboard');
+      const me = await api.me();
+      navigate(me?.is_provider ? '/provider/jobs' : '/client/jobs');
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {
@@ -31,7 +33,7 @@ export default function Login() {
       <form className="stack" onSubmit={onSubmit}>
         <div className="stack" style={{ gap: 6 }}>
           <div className="label">Email</div>
-          <input className="input" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input className="input" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div className="stack" style={{ gap: 6 }}>
           <div className="label">Password</div>
@@ -42,10 +44,15 @@ export default function Login() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        {error ? <div className="error">{error}</div> : null}
+        <Banner kind={error ? 'error' : ''}>{error}</Banner>
         <button className="button" disabled={loading}>
           {loading ? 'Signing in…' : 'Login'}
         </button>
+        <div>
+          <a className="muted" href="#" onClick={(e) => e.preventDefault()}>
+            Forgot Password
+          </a>
+        </div>
         <div className="muted">
           No account? <Link to="/register">Register</Link>
         </div>
