@@ -158,6 +158,12 @@ a {
   color: #1e40af;
 }
 
+.badge.confirmed {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
 .badge.completed {
   background: #d1fae5;
   border-color: #10b981;

@@ -103,6 +103,12 @@ export default function Layout() {
               ) : (
                 <Link to="/provider/onboarding">Become Provider</Link>
               )}
+              {me?.is_staff ? (
+                <>
+                  <span className="muted">|</span>
+                  <Link to="/admin/users">Admin</Link>
+                </>
+              ) : null}
               <span className="muted">
                 {me?.user?.name ? `${me.user.name} · ` : ''}
                 {me?.is_provider ? 'Client · Provider' : 'Client'}

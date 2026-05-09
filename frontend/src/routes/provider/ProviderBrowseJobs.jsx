@@ -8,6 +8,7 @@ export default function ProviderBrowseJobs() {
   const [jobs, setJobs] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState({});
 
   const categoryOptions = useMemo(() => {
     const opts = categories.map((c) => ({ value: String(c.category_id), label: c.category_name }));
@@ -36,11 +37,19 @@ export default function ProviderBrowseJobs() {
     }
   }
 
+  function setDraftField(jobId, field, value) {
+    setDraft((prev) => ({
+      ...prev,
+      [jobId]: { ...prev[jobId], [field]: value },
+    }));
+  }
+
   async function onBook(jobId) {
     setError('');
     setBusy(true);
     try {
-      await api.bookJob({ jobId, price: '100.00', comment: '' });
+      const d = draft[jobId] || {};
+      await api.bookJob({ jobId, price: d.price || '175.00', comment: d.comment || '' });
     } catch (err) {
       setError(err.message || 'Booking failed');
     } finally {
@@ -89,9 +98,25 @@ export default function ProviderBrowseJobs() {
                 <div style={{ fontWeight: 700 }}>job_id: {j.job_id}</div>
                 <div className="muted">service_area: {j.service_area}</div>
               </div>
-              <button className="button secondary" disabled={busy} onClick={() => onBook(j.job_id)}>
-                Book
-              </button>
+              <div className="row" style={{ gap: 10 }}>
+                <input
+                  className="input"
+                  style={{ width: 140 }}
+                  placeholder="Price"
+                  value={draft[j.job_id]?.price || ''}
+                  onChange={(e) => setDraftField(j.job_id, 'price', e.target.value)}
+                />
+                <input
+                  className="input"
+                  style={{ width: 220 }}
+                  placeholder="Comment"
+                  value={draft[j.job_id]?.comment || ''}
+                  onChange={(e) => setDraftField(j.job_id, 'comment', e.target.value)}
+                />
+                <button className="button secondary" disabled={busy} onClick={() => onBook(j.job_id)}>
+                  Accept
+                </button>
+              </div>
             </div>
             {j.description ? <div style={{ marginTop: 8 }}>{j.description}</div> : null}
           </div>

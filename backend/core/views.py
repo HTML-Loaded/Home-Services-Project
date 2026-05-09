@@ -11,6 +11,7 @@ from .serializers import (
     BookingIdSerializer,
     BookingListSerializer,
     BecomeProviderSerializer,
+    BookingUpdateSerializer,
     BookJobSerializer,
     CategorySerializer,
     CreateDisputeSerializer,
@@ -24,8 +25,10 @@ from .serializers import (
     PaymentSerializer,
     RegisterSerializer,
     ReviewSerializer,
+    ReviewUpdateSerializer,
     ServiceProviderSerializer,
     SetProviderCategoriesSerializer,
+    ProviderProfileUpdateSerializer,
     UserSerializer,
 )
 
@@ -139,6 +142,20 @@ def become_provider(request):
     return Response(ServiceProviderSerializer(provider).data, status=status.HTTP_201_CREATED)
 
 
+@api_view(["GET", "PATCH"])
+def provider_profile(request):
+    if request.method == "GET":
+        provider = _service_call(lambda: services.get_provider_profile(request.user))
+        data = ServiceProviderSerializer(provider).data
+        data["category_ids"] = [p.category_id for p in provider.provides.all()]
+        return Response(data)
+
+    serializer = ProviderProfileUpdateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    provider = _service_call(lambda: services.update_provider_profile(request.user, **serializer.validated_data))
+    return Response(ServiceProviderSerializer(provider).data)
+
+
 @api_view(["PUT"])
 def set_provider_categories(request):
     serializer = SetProviderCategoriesSerializer(data=request.data)
@@ -178,6 +195,42 @@ def job_detail(request, job_id: int):
     serializer.is_valid(raise_exception=True)
     job = _service_call(lambda: services.update_job_posting(user=request.user, job_id=job_id, **serializer.validated_data))
     return Response(JobPostingSerializer(job).data)
+
+
+@api_view(["PATCH"])
+def booking_detail(request, booking_id: int):
+    serializer = BookingUpdateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    booking = _service_call(
+        lambda: services.update_booking_by_provider(
+            provider_user=request.user, booking_id=booking_id, **serializer.validated_data
+        )
+    )
+    return Response({"booking_id": booking.booking_id})
+
+
+@api_view(["PATCH"])
+def review_detail(request, booking_id: int):
+    serializer = ReviewUpdateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    review = _service_call(
+        lambda: services.update_review(client_user=request.user, booking_id=booking_id, **serializer.validated_data)
+    )
+    return Response(ReviewSerializer(review).data)
+
+
+@api_view(["GET"])
+def admin_list_users(request):
+    if not getattr(request.user, "is_staff", False):
+        raise PermissionDenied(detail="Forbidden")
+    users = User.objects.all().order_by("-user_id")
+    return Response(UserSerializer(users, many=True).data)
+
+
+@api_view(["POST"])
+def admin_deactivate_user(request, user_id: int):
+    _service_call(lambda: services.deactivate_user(request.user, user_id=user_id))
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["POST"])

@@ -54,6 +54,22 @@ class SetProviderCategoriesSerializer(serializers.Serializer):
     category_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=False)
 
 
+class ProviderProfileUpdateSerializer(serializers.Serializer):
+    service_area = serializers.CharField(required=False)
+    service_distance = serializers.FloatField(required=False, allow_null=True)
+    category_ids = serializers.ListField(child=serializers.IntegerField(), required=False)
+
+
+class BookingUpdateSerializer(serializers.Serializer):
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    comment = serializers.CharField(required=False, allow_blank=True)
+
+
+class ReviewUpdateSerializer(serializers.Serializer):
+    rating = serializers.IntegerField(required=False)
+    comment = serializers.CharField(required=False, allow_blank=True)
+
+
 class JobPostingSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobPosting

@@ -14,6 +14,7 @@ import ProviderOnboarding from './provider/ProviderOnboarding.jsx';
 import ProviderBookings from './provider/ProviderBookings.jsx';
 import ProviderBrowseJobs from './provider/ProviderBrowseJobs.jsx';
 import ProviderReviews from './provider/ProviderReviews.jsx';
+import AdminUsers from './admin/AdminUsers.jsx';
 import { isAuthed } from '../lib/auth.js';
 
 function ProtectedRoute({ children }) {
@@ -118,6 +119,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ProviderReviews />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute>
+              <AdminUsers />
             </ProtectedRoute>
           }
         />

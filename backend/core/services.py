@@ -198,6 +198,69 @@ def delete_job_posting(user, job_id):
     job.delete()
 
 
+def get_provider_profile(user):
+    return ServiceProvider.objects.prefetch_related("provides").get(provider=user)
+
+
+@transaction.atomic
+def update_provider_profile(user, service_area=None, service_distance=None, category_ids=None):
+    provider = ServiceProvider.objects.get(provider=user)
+    if service_area is not None:
+        provider.service_area = service_area
+    if service_distance is not None:
+        provider.service_distance = service_distance
+    provider.save()
+
+    if category_ids is not None:
+        set_provider_categories(user, category_ids)
+
+    return provider
+
+
+@transaction.atomic
+def update_booking_by_provider(provider_user, booking_id, price=None, comment=None):
+    provider = ServiceProvider.objects.get(provider=provider_user)
+    booking = Booking.objects.get(booking_id=booking_id, provider=provider)
+    if booking.status in {"CANCELLED", "COMPLETED", "REJECTED"}:
+        raise ValueError("Invalid state")
+    if price is not None:
+        booking.price = price
+    if comment is not None:
+        booking.comment = comment
+    booking.save()
+    return booking
+
+
+@transaction.atomic
+def update_review(client_user, booking_id, rating=None, comment=None):
+    review = Review.objects.select_related("booking", "booking__job").get(booking_id=booking_id)
+    if review.booking.job.user_id != client_user.user_id:
+        raise ValueError("Forbidden")
+
+    next_rating = rating if rating is not None else review.rating
+    next_comment = comment if comment is not None else review.comment
+    validate_review(rating=next_rating, comment=next_comment)
+
+    if rating is not None:
+        review.rating = rating
+    if comment is not None:
+        review.comment = comment
+    review.save()
+
+    avg_rating = (
+        Review.objects.filter(booking__provider=review.booking.provider).aggregate(avg=Avg("rating"))["avg"]
+    )
+    ServiceProvider.objects.filter(provider=review.booking.provider.provider).update(average_rating=avg_rating)
+    return review
+
+
+@transaction.atomic
+def deactivate_user(admin_user, user_id):
+    if not getattr(admin_user, "is_staff", False):
+        raise ValueError("Forbidden")
+    User.objects.filter(user_id=user_id).update(is_active=False)
+
+
 @transaction.atomic
 def create_payment(client_user, booking_id, amount, payment_method):
     booking = Booking.objects.select_related("job").get(booking_id=booking_id)

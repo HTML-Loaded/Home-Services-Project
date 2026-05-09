@@ -87,6 +87,8 @@ export const api = {
 
   becomeProvider: (payload) => request('/api/providers/become/', { method: 'POST', body: payload }),
   setProviderCategories: (payload) => request('/api/providers/categories/', { method: 'PUT', body: payload }),
+  providerProfile: () => request('/api/providers/profile/'),
+  updateProviderProfile: (payload) => request('/api/providers/profile/', { method: 'PATCH', body: payload }),
 
   createJob: (payload) => request('/api/jobs/', { method: 'POST', body: payload }),
   myJobs: () => request('/api/jobs/mine/'),
@@ -99,6 +101,7 @@ export const api = {
 
   myBookingsAsClient: () => request('/api/bookings/mine/'),
   myBookingsAsProvider: () => request(withQuery('/api/bookings/mine/', { as: 'provider' })),
+  updateBooking: (bookingId, payload) => request(`/api/bookings/${bookingId}/`, { method: 'PATCH', body: payload }),
   selectBooking: (payload) => request('/api/bookings/select/', { method: 'POST', body: payload }),
   cancelBooking: (payload) => request('/api/bookings/cancel/', { method: 'POST', body: payload }),
   completeBooking: (payload) => request('/api/bookings/complete/', { method: 'POST', body: payload }),
@@ -109,6 +112,10 @@ export const api = {
 
   myReviewsAsClient: () => request('/api/reviews/mine/'),
   myReviewsAsProvider: () => request(withQuery('/api/reviews/mine/', { as: 'provider' })),
+  updateReview: (bookingId, payload) => request(`/api/reviews/${bookingId}/`, { method: 'PATCH', body: payload }),
+
+  adminUsers: () => request('/api/admin/users/'),
+  adminDeactivateUser: (userId) => request(`/api/admin/users/${userId}/deactivate/`, { method: 'POST' }),
 
   createDispute: (payload) => request('/api/disputes/', { method: 'POST', body: payload }),
   listDisputes: () => request('/api/disputes/list/'),

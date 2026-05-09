@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api.js';
+import Banner from '../../ui/Banner.jsx';
 
 export default function ProviderOnboarding() {
   const navigate = useNavigate();
@@ -10,6 +11,8 @@ export default function ProviderOnboarding() {
   const [selected, setSelected] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [isProvider, setIsProvider] = useState(false);
 
   const categoryOptions = useMemo(() => {
     const opts = categories.map((c) => ({ id: c.category_id, label: c.category_name }));
@@ -22,6 +25,19 @@ export default function ProviderOnboarding() {
       .categories()
       .then((data) => setCategories(Array.isArray(data) ? data : []))
       .catch(() => setCategories([]));
+
+    api
+      .me()
+      .then((me) => {
+        setIsProvider(!!me?.is_provider);
+        if (!me?.is_provider) return;
+        return api.providerProfile().then((p) => {
+          setServiceArea(p?.service_area || '');
+          setServiceDistance(p?.service_distance ? String(p.service_distance) : '');
+          setSelected(Array.isArray(p?.category_ids) ? p.category_ids : []);
+        });
+      })
+      .catch(() => {});
   }, []);
 
   function toggle(id) {
@@ -31,13 +47,23 @@ export default function ProviderOnboarding() {
   async function onSubmit(e) {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setBusy(true);
     try {
-      await api.becomeProvider({
-        service_area: serviceArea,
-        service_distance: serviceDistance ? Number(serviceDistance) : null,
-      });
-      await api.setProviderCategories({ category_ids: selected });
+      if (!isProvider) {
+        await api.becomeProvider({
+          service_area: serviceArea,
+          service_distance: serviceDistance ? Number(serviceDistance) : null,
+        });
+        await api.setProviderCategories({ category_ids: selected });
+      } else {
+        await api.updateProviderProfile({
+          service_area: serviceArea,
+          service_distance: serviceDistance ? Number(serviceDistance) : null,
+          category_ids: selected,
+        });
+      }
+      setSuccess('Saved!');
       navigate('/provider/jobs');
     } catch (err) {
       setError(err.message || 'Onboarding failed');
@@ -48,8 +74,8 @@ export default function ProviderOnboarding() {
 
   return (
     <div className="stack">
-      <h2 style={{ margin: 0 }}>Become a Provider</h2>
-      {error ? <div className="error">{error}</div> : null}
+      <h2 style={{ margin: 0 }}>{isProvider ? 'Provider Profile' : 'Become a Provider'}</h2>
+      <Banner kind={success ? 'success' : error ? 'error' : ''}>{success || error}</Banner>
 
       <div className="card" style={{ maxWidth: 720 }}>
         <form className="stack" onSubmit={onSubmit}>
@@ -75,7 +101,7 @@ export default function ProviderOnboarding() {
           </div>
 
           <button className="button" disabled={busy || !serviceArea || selected.length === 0}>
-            {busy ? 'Saving…' : 'Finish'}
+            {busy ? 'Saving…' : isProvider ? 'Save' : 'Finish'}
           </button>
         </form>
       </div>
