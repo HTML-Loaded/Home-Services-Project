@@ -65,6 +65,22 @@ class JobPostingSerializer(serializers.ModelSerializer):
         read_only_fields = ["user"]
 
 
+class JobPostingListSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source="category.category_name", read_only=True)
+
+    class Meta:
+        model = JobPosting
+        fields = [
+            "job_id",
+            "category",
+            "category_name",
+            "service_area",
+            "description",
+            "start_time",
+            "end_time",
+        ]
+
+
 class JobPostingCreateSerializer(serializers.Serializer):
     category_id = serializers.IntegerField()
     service_area = serializers.CharField()
@@ -78,6 +94,30 @@ class BookingSerializer(serializers.ModelSerializer):
         model = Booking
         fields = ["booking_id", "job", "provider", "price", "comment", "status"]
         read_only_fields = ["provider", "status"]
+
+
+class BookingListSerializer(serializers.ModelSerializer):
+    job_id = serializers.IntegerField(source="job.job_id", read_only=True)
+    job_service_area = serializers.CharField(source="job.service_area", read_only=True)
+    job_category_id = serializers.IntegerField(source="job.category_id", read_only=True)
+    job_category_name = serializers.CharField(source="job.category.category_name", read_only=True)
+    provider_id = serializers.IntegerField(source="provider.provider_id", read_only=True)
+    provider_name = serializers.CharField(source="provider.provider.name", read_only=True)
+
+    class Meta:
+        model = Booking
+        fields = [
+            "booking_id",
+            "status",
+            "price",
+            "comment",
+            "job_id",
+            "job_service_area",
+            "job_category_id",
+            "job_category_name",
+            "provider_id",
+            "provider_name",
+        ]
 
 
 class BookJobSerializer(serializers.Serializer):
@@ -99,6 +139,24 @@ class CreateReviewSerializer(serializers.Serializer):
     booking_id = serializers.IntegerField()
     rating = serializers.IntegerField()
     comment = serializers.CharField(required=False, allow_blank=True)
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    booking_id = serializers.IntegerField(source="booking.booking_id", read_only=True)
+
+    class Meta:
+        model = Review
+        fields = ["booking_id", "user", "rating", "comment", "review_date"]
+        read_only_fields = ["user", "review_date"]
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    booking_id = serializers.IntegerField(source="booking.booking_id", read_only=True)
+
+    class Meta:
+        model = Payment
+        fields = ["booking_id", "amount", "payment_date", "payment_method"]
+        read_only_fields = ["payment_date"]
 
 
 class CreateDisputeSerializer(serializers.Serializer):

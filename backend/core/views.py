@@ -6,9 +6,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ObjectDoesNotExist
 
 from . import services
-from .models import Category, User
+from .models import Booking, Category, JobPosting, Payment, Review, ServiceProvider, User
 from .serializers import (
     BookingIdSerializer,
+    BookingListSerializer,
     BecomeProviderSerializer,
     BookJobSerializer,
     CategorySerializer,
@@ -17,10 +18,14 @@ from .serializers import (
     CreateReviewSerializer,
     DisputeSerializer,
     JobPostingCreateSerializer,
+    JobPostingListSerializer,
     JobPostingSerializer,
+    PaymentSerializer,
     RegisterSerializer,
+    ReviewSerializer,
     ServiceProviderSerializer,
     SetProviderCategoriesSerializer,
+    UserSerializer,
 )
 
 
@@ -70,6 +75,59 @@ def login(request):
 def list_categories(request):
     categories = Category.objects.all().order_by("category_name")
     return Response(CategorySerializer(categories, many=True).data)
+
+
+@api_view(["GET"])
+def me(request):
+    return Response(
+        {
+            "user": UserSerializer(request.user).data,
+            "is_provider": ServiceProvider.objects.filter(provider=request.user).exists(),
+            "is_staff": bool(getattr(request.user, "is_staff", False)),
+        }
+    )
+
+
+@api_view(["GET"])
+def my_jobs(request):
+    jobs = JobPosting.objects.filter(user=request.user).select_related("category").order_by("-job_id")
+    return Response(JobPostingListSerializer(jobs, many=True).data)
+
+
+@api_view(["GET"])
+def my_bookings(request):
+    as_role = request.query_params.get("as")
+    if as_role == "provider":
+        provider = ServiceProvider.objects.get(provider=request.user)
+        bookings = Booking.objects.filter(provider=provider)
+    else:
+        bookings = Booking.objects.filter(job__user=request.user)
+
+    bookings = bookings.select_related("job", "job__category", "provider", "provider__provider").order_by(
+        "-booking_id"
+    )
+    return Response(BookingListSerializer(bookings, many=True).data)
+
+
+@api_view(["GET"])
+def my_payments(request):
+    payments = Payment.objects.filter(booking__job__user=request.user).select_related("booking").order_by(
+        "-payment_date"
+    )
+    return Response(PaymentSerializer(payments, many=True).data)
+
+
+@api_view(["GET"])
+def my_reviews(request):
+    as_role = request.query_params.get("as")
+    if as_role == "provider":
+        provider = ServiceProvider.objects.get(provider=request.user)
+        reviews = Review.objects.filter(booking__provider=provider)
+    else:
+        reviews = Review.objects.filter(user=request.user)
+
+    reviews = reviews.select_related("booking").order_by("-review_date")
+    return Response(ReviewSerializer(reviews, many=True).data)
 
 
 @api_view(["POST"])
@@ -197,3 +255,14 @@ def create_dispute(request):
 def list_disputes(request):
     disputes = _service_call(lambda: services.get_disputes_for_user(request.user))
     return Response(DisputeSerializer(disputes, many=True).data)
+
+
+@api_view(["GET"])
+def list_providers(request):
+    category_id = request.query_params.get("category_id")
+    service_area = request.query_params.get("service_area")
+    if category_id is None or service_area is None:
+        return Response({"detail": "category_id and service_area required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    providers = _service_call(lambda: services.get_provider_list(category_id=category_id, service_area=service_area))
+    return Response(ServiceProviderSerializer(providers, many=True).data)
